@@ -4,7 +4,7 @@ from tkinter import filedialog
 from PIL import Image
 
 class DigitIdentifier:
-    def __init__(self, ref_folder="Image", target_size=(20, 20), threshold=128):
+    def __init__(self, ref_folder="Image", target_size=(10, 10), threshold=128):
         self.ref_folder = ref_folder
         self.target_size = target_size
         self.threshold = threshold
@@ -86,13 +86,13 @@ class DigitIdentifier:
         """Displays the binary matrices in the terminal"""
         print(f"\n[Your Selection]  |  [Best Reference: {label}]")
         for r in range(self.target_size[1]):
-            t_row = "".join(["#" if test_m[r][c] == 1 else "." for c in range(self.target_size[0])])
-            r_row = "".join(["#" if ref_m[r][c] == 1 else "." for c in range(self.target_size[0])])
+            t_row = "".join(["1" if test_m[r][c] == 1 else "." for c in range(self.target_size[0])])
+            r_row = "".join(["1" if ref_m[r][c] == 1 else "." for c in range(self.target_size[0])])
             print(f"{t_row}   |   {r_row}")
 
 # --- Main Logic ---
 if __name__ == "__main__":
-    app = DigitIdentifier(ref_folder="Image", target_size=(16, 16))
+    app = DigitIdentifier(ref_folder="Image", target_size=(10, 10))
     app.load_database()
 
     if not app.database:
