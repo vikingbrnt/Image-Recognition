@@ -3,100 +3,110 @@ import tkinter as tk
 from tkinter import filedialog
 from PIL import Image
 
-class ImageDigitMatcher:
+class DigitIdentifier:
     def __init__(self, ref_folder="Image", target_size=(20, 20), threshold=128):
         self.ref_folder = ref_folder
         self.target_size = target_size
         self.threshold = threshold
-        self.database = {}  # Stores { "1": matrix, "2": matrix ... }
+        self.database = {}  # Stores reference matrices (1-9)
 
-    def select_file(self, title):
-        """Step 1: Graphical Image Acquisition"""
+    def select_file(self):
+        """Step 1: Graphical Image Acquisition (Window Selection)"""
         root = tk.Tk()
         root.withdraw()
-        file_path = filedialog.askopenfilename(title=title)
+        path = filedialog.askopenfilename(title="Select Number to Identify")
         root.destroy()
-        return file_path
+        return path
 
     def to_matrix(self, path):
         """Steps 2-5: Grayscale, Normalize, Binarize, Matrix"""
         try:
-            # Load and convert to Grayscale ('L') then Resize (Normalization)
+            # Load, Grayscale, and Normalize size
             img = Image.open(path).convert('L').resize(self.target_size)
             pixels = list(img.getdata())
             w, h = self.target_size
             
-            # Binarization based on threshold (1 for light, 0 for dark)
+            # Binarization: 1 for light/background, 0 for dark/digit
             return [[(1 if pixels[y * w + x] > self.threshold else 0) 
                      for x in range(w)] for y in range(h)]
         except Exception as e:
-            print(f"Error processing {path}: {e}")
+            print(f"Error processing image: {e}")
             return None
 
-    def load_references(self):
-        """Step 6: Build Database from 'Image' folder (1.png to 9.png)"""
-        print(f"Building database from folder: '{self.ref_folder}'...")
+    def load_database(self):
+        """Step 6: Build the Reference Database"""
+        print(f"Loading references from '{self.ref_folder}'...")
         for i in range(1, 10):
-            file_name = f"{i}.png"
-            path = os.path.join(self.ref_folder, file_name)
-            
+            filename = f"{i}.png"
+            path = os.path.join(self.ref_folder, filename)
             if os.path.exists(path):
                 self.database[str(i)] = self.to_matrix(path)
-                print(f"  [✓] Reference {i} loaded.")
+                print(f"  [✓] Loaded {filename}")
             else:
-                print(f"  [!] Missing: {file_name} in '{self.ref_folder}'")
+                print(f"  [!] Missing {filename}")
 
-    def run_identification(self):
-        """Steps 7 & 8: Comparison and Result Display"""
-        while True:
-            print("\nOpening file selector for identification...")
-            test_path = self.select_file("Select a number to identify")
+    def find_best_match(self, test_path):
+        """Step 7 & 8: Comparison and Identification"""
+        test_matrix = self.to_matrix(test_path)
+        if not test_matrix: return
+
+        best_label = None
+        highest_score = -1
+        all_results = {}
+
+        for label, ref_matrix in self.database.items():
+            # Pixel-by-pixel matching
+            matches = 0
+            total_pixels = self.target_size[0] * self.target_size[1]
             
-            if not test_path:
-                print("No file selected. Program ending.")
-                break
-
-            test_matrix = self.to_matrix(test_path)
-            if not test_matrix: continue
-
-            scores = {}
-            for num, ref_matrix in self.database.items():
-                # Compare pixel by pixel (both 0s and 1s)
-                matches = sum(1 for r in range(self.target_size[1]) 
-                             for c in range(self.target_size[0]) 
-                             if test_matrix[r][c] == ref_matrix[r][c])
-                
-                score = (matches / (self.target_size[0] * self.target_size[1])) * 100
-                scores[num] = score
-
-            # Determine best match
-            best_num = max(scores, key=scores.get)
-            best_score = scores[best_num]
-
-            self.visualize(test_matrix, self.database[best_num], best_num)
+            for r in range(self.target_size[1]):
+                for c in range(self.target_size[0]):
+                    if test_matrix[r][c] == ref_matrix[r][c]:
+                        matches += 1
             
-            print(f"\n--- Result ---")
-            print(f"IDENTIFIED AS: {best_num}")
-            print(f"MATCH SCORE:   {best_score:.2f}%")
+            score = (matches / total_pixels) * 100
+            all_results[label] = score
             
-            cont = input("\nIdentify another image? (y/n): ").lower()
-            if cont != 'y': break
+            if score > highest_score:
+                highest_score = score
+                best_label = label
+
+        # Display Visualization
+        self.visualize(test_matrix, self.database[best_label], best_label)
+        
+        print(f"\n--- MATCHING RESULTS ---")
+        print(f"The best match is Number: {best_label}")
+        print(f"Confidence Level: {highest_score:.2f}%")
+        
+        print("\nFull Comparison Breakdown:")
+        for num, s in sorted(all_results.items()):
+            print(f"  Number {num}: {s:.2f}% match")
 
     def visualize(self, test_m, ref_m, label):
-        """Visual terminal comparison"""
-        print(f"\n[Input Selection]  |  [Reference {label}]")
+        """Displays the binary matrices in the terminal"""
+        print(f"\n[Your Selection]  |  [Best Reference: {label}]")
         for r in range(self.target_size[1]):
-            row_test = "".join(["#" if test_m[r][c] == 1 else "." for c in range(self.target_size[0])])
-            row_ref = "".join(["#" if ref_m[r][c] == 1 else "." for c in range(self.target_size[0])])
-            print(f"{row_test}   |   {row_ref}")
+            t_row = "".join(["#" if test_m[r][c] == 1 else "." for c in range(self.target_size[0])])
+            r_row = "".join(["#" if ref_m[r][c] == 1 else "." for c in range(self.target_size[0])])
+            print(f"{t_row}   |   {r_row}")
 
-# --- Main Script ---
+# --- Main Logic ---
 if __name__ == "__main__":
-    # Ensure the folder 'Image' contains 1.png, 2.png, etc.
-    app = ImageDigitMatcher(ref_folder="Image", target_size=(16, 16))
-    app.load_references()
+    app = DigitIdentifier(ref_folder="Image", target_size=(16, 16))
+    app.load_database()
 
     if not app.database:
-        print("\nFATAL ERROR: The reference database is empty.")
+        print("\nError: Could not load the reference database. Check your 'Image' folder.")
     else:
-        app.run_identification()
+        # Loop to allow multiple identifications
+        while True:
+            print("\nPlease select an image to identify...")
+            selected_path = app.select_file()
+            if not selected_path:
+                print("No selection made. Exiting.")
+                break
+            
+            app.find_best_match(selected_path)
+            
+            if input("\nIdentify another? (y/n): ").lower() != 'y':
+                break
