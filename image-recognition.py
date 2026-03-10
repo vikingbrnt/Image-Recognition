@@ -1,10 +1,10 @@
 import os
 import tkinter as tk
 from tkinter import filedialog
-from PIL import Image
+from PIL import Image, ImageOps
 
 class DigitIdentifier:
-    def __init__(self, ref_folder="Image", target_size=(10, 10), threshold=128):
+    def __init__(self, ref_folder="Image", target_size=(28, 28), threshold=128):
         self.ref_folder = ref_folder
         self.target_size = target_size
         self.threshold = threshold
@@ -18,17 +18,32 @@ class DigitIdentifier:
         root.destroy()
         return path
 
+    from PIL import Image, ImageOps # Ensure ImageOps is imported at the top of your file
+
     def to_matrix(self, path):
-        """Steps 2-5: Grayscale, Normalize, Binarize, Matrix"""
+        """Steps 2-5: Grayscale, Invert, Crop, Resize, Binarize, Matrix"""
         try:
-            # Load, Grayscale, and Normalize size
-            img = Image.open(path).convert('L').resize(self.target_size)
+            
+            img = Image.open(path).convert('L')
+            
+            img = ImageOps.invert(img)
+            
+            bbox = img.getbbox()
+            if bbox:
+                img = img.crop(bbox)
+                
+                img = ImageOps.expand(img, border=2, fill=0)
+            
+            # 4. Resize to target size (e.g., 10x10)
+            img = img.resize(self.target_size)
+            
+            # 5. Convert to Matrix
             pixels = list(img.getdata())
             w, h = self.target_size
             
-            # Binarization: 1 for light/background, 0 for dark/digit
             return [[(1 if pixels[y * w + x] > self.threshold else 0) 
-                     for x in range(w)] for y in range(h)]
+                    for x in range(w)] for y in range(h)]
+
         except Exception as e:
             print(f"Error processing image: {e}")
             return None
@@ -92,7 +107,7 @@ class DigitIdentifier:
 
 # --- Main Logic ---
 if __name__ == "__main__":
-    app = DigitIdentifier(ref_folder="Image", target_size=(10, 10))
+    app = DigitIdentifier(ref_folder="Image", target_size=(28, 28))
     app.load_database()
 
     if not app.database:
