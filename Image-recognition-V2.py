@@ -5,7 +5,7 @@ from PIL import Image, ImageOps
 import numpy as np  # New dependency for speed
 
 class DigitIdentifier:
-    def __init__(self, ref_folder="Image", target_size=(28, 28), threshold=128):
+    def __init__(self, ref_folder="Image", target_size=(25, 25), threshold=128):
         self.ref_folder = ref_folder
         self.target_size = target_size
         self.threshold = threshold
@@ -81,7 +81,7 @@ class DigitIdentifier:
 
 # --- Main Logic ---
 if __name__ == "__main__":
-    app = DigitIdentifier(ref_folder="Image", target_size=(28, 28))
+    app = DigitIdentifier(ref_folder="Image", target_size=(25, 25), threshold=128)
     app.load_database()
 
     if not app.database:
